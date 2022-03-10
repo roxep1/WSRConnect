@@ -1,6 +1,8 @@
 package com.bashkir.wsrconnect.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
@@ -22,6 +24,7 @@ import com.airbnb.mvrx.compose.collectAsState
 import com.airbnb.mvrx.compose.mavericksActivityViewModel
 import com.bashkir.wsrconnect.ConnectViewModel
 import com.bashkir.wsrconnect.R
+import com.bashkir.wsrconnect.google.GoogleApiContract
 import com.bashkir.wsrconnect.ui.components.Background
 import com.bashkir.wsrconnect.ui.components.ErrorDialog
 import com.bashkir.wsrconnect.ui.components.StyledButton
@@ -40,11 +43,17 @@ fun SignInScreen(navController: NavController, viewModel: ConnectViewModel) = Co
     val errorDialog = rememberMaterialDialogState()
     val user by viewModel.collectAsState { it.user }
 
+    val authResultLauncher =
+        rememberLauncherForActivityResult(
+            contract = GoogleApiContract(),
+            onResult = viewModel::onSignInResult
+        )
+
     SignInView(emailField = emailField, passwordField = passwordField, onSignUp = {
         navController.navigate(WSRConnectScreen.SignUpScreen.destination)
     }, onSignIn = {
         viewModel.signIn(emailField.value.text, passwordField.value.text)
-    })
+    }, onGoogleSignIn = { authResultLauncher.launch(1) })
 
     LaunchedEffect(user) {
         when (user) {
@@ -62,7 +71,8 @@ private fun ConstraintLayoutScope.SignInView(
     emailField: MutableState<TextFieldValue>,
     passwordField: MutableState<TextFieldValue>,
     onSignIn: () -> Unit = {},
-    onSignUp: () -> Unit = {}
+    onSignUp: () -> Unit = {},
+    onGoogleSignIn: () -> Unit
 ) {
     val (email, password, google, buttons) = createRefs()
 
@@ -71,7 +81,8 @@ private fun ConstraintLayoutScope.SignInView(
     Image(
         painterResource(R.drawable.ic_colored_logo),
         null,
-        modifier = Modifier.padding(dimens.normalPadding)
+        modifier = Modifier
+            .padding(dimens.normalPadding)
     )
 
     StyledTextField(
@@ -87,7 +98,8 @@ private fun ConstraintLayoutScope.SignInView(
         keyboardType = KeyboardType.Email
     )
 
-    StyledTextField(fieldValue = passwordField, label = "Password",
+    StyledTextField(
+        fieldValue = passwordField, label = "Password",
         modifier = Modifier
             .constrainAs(password) {
                 top.linkTo(email.bottom)
@@ -104,6 +116,7 @@ private fun ConstraintLayoutScope.SignInView(
                 top.linkTo(password.bottom)
                 start.linkTo(password.start)
             }
+            .clickable(onClick = onGoogleSignIn)
             .padding(top = dimens.normalPadding)
     )
 

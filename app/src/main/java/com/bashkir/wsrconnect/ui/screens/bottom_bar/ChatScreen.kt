@@ -24,7 +24,7 @@ import com.bashkir.wsrconnect.ui.theme.backGroundColor
 import com.bashkir.wsrconnect.ui.theme.searchShape
 
 @Composable
-fun ChatScreen(navController: NavController) = Scaffold(
+fun ChatScreen() = Scaffold(
     topBar = { StyledTopBar("Chats") },
     floatingActionButton = { StyledFloatingActionButton() },
     backgroundColor = backGroundColor

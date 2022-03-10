@@ -2,9 +2,11 @@ package com.bashkir.wsrconnect.ui.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.bashkir.wsrconnect.ConnectViewModel
 import com.bashkir.wsrconnect.R
 import com.bashkir.wsrconnect.ui.navigation.BottomBarScreen.*
 import com.bashkir.wsrconnect.ui.screens.bottom_bar.ChatScreen
@@ -23,16 +25,16 @@ sealed class BottomBarScreen(val destination: String, @DrawableRes val icon: Int
 
 
 @Composable
-fun CreateBottomBarNavHost(navController: NavHostController) = NavHost(
-    navController = navController,
+fun CreateBottomBarNavHost(bottomNavController: NavHostController, mainNavController: NavController, viewModel: ConnectViewModel) = NavHost(
+    navController = bottomNavController,
     startDestination = ChatScreen.destination
 ) {
     composable(ChatScreen.destination){
-        ChatScreen(navController = navController)
+        ChatScreen()
     }
 
     composable(ProfileScreen.destination){
-        ProfileScreen()
+        ProfileScreen(viewModel, mainNavController)
     }
 
     composable(SettingsScreen.destination){

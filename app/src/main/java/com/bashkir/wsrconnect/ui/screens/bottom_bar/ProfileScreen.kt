@@ -18,17 +18,23 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.navigation.NavController
+import com.airbnb.mvrx.compose.collectAsState
+import com.airbnb.mvrx.compose.mavericksViewModel
+import com.bashkir.wsrconnect.ConnectViewModel
 import com.bashkir.wsrconnect.R
 import com.bashkir.wsrconnect.ui.components.StyledButton
 import com.bashkir.wsrconnect.ui.components.StyledTopBar
+import com.bashkir.wsrconnect.ui.navigation.WSRConnectScreen
 import com.bashkir.wsrconnect.ui.theme.WSRConnectTheme
 import com.bashkir.wsrconnect.ui.theme.WSRConnectTheme.dimens
 import com.bashkir.wsrconnect.ui.theme.backGroundColor
 import com.bashkir.wsrconnect.ui.theme.darkBlueColor
 import com.bashkir.wsrconnect.ui.theme.labelText
+import com.google.firebase.auth.UserProfileChangeRequest
 
 @Composable
-fun ProfileScreen() =
+fun ProfileScreen(viewModel: ConnectViewModel, mainNavController: NavController) =
     Scaffold(topBar = { StyledTopBar(title = "Profile") }, backgroundColor = backGroundColor) {
 
         Column(Modifier.fillMaxSize()) {
@@ -36,26 +42,33 @@ fun ProfileScreen() =
             Head(
                 Modifier
                     .fillMaxWidth()
-                    .weight(0.8f)
+                    .weight(0.8f),
+                viewModel
             )
             Fields(
                 Modifier
                     .fillMaxWidth()
                     .weight(0.8f)
-                    .padding(dimens.normalPadding)
+                    .padding(dimens.normalPadding),
+                viewModel
             )
 
             BoxWithExitButton(
                 Modifier
                     .fillMaxWidth()
                     .weight(0.3f)
-            ) {}
+            ) {
+                viewModel.signOut()
+                mainNavController.navigate(WSRConnectScreen.SignInScreen.destination)
+            }
 
         }
     }
 
 @Composable
-private fun Head(modifier: Modifier) = Box(modifier) {
+private fun Head(modifier: Modifier, viewModel: ConnectViewModel) = Box(modifier) {
+    val user by viewModel.collectAsState{it.user}
+
     Image(
         painterResource(R.drawable.example_image),
         null,
@@ -69,47 +82,47 @@ private fun Head(modifier: Modifier) = Box(modifier) {
             .align(Alignment.BottomStart)
     ) {
         Text(
-            "MyNameOne",
+            user()?.displayName?:"",
             color = Color.White,
             fontSize = dimens.buttonText,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(dimens.normalPadding))
-        Text("example@mail.com", color = Color.White, fontSize = dimens.titleText)
+        Text(user()?.email?:"", color = Color.White, fontSize = dimens.titleText)
     }
 }
 
 @Composable
 private fun Fields(
     modifier: Modifier = Modifier,
-    nameOnSave: (TextFieldValue) -> Unit = {},
-    emailOnSave: (TextFieldValue) -> Unit = {},
-    passwordOnSave: (TextFieldValue) -> Unit = {},
+    viewModel: ConnectViewModel
 ) = Column(
     modifier,
     horizontalAlignment = Alignment.CenterHorizontally
 ) {
-    val nameField = remember { mutableStateOf(TextFieldValue("Ivan Ivanov")) }
-    val emailField = remember { mutableStateOf(TextFieldValue("example@mail.com")) }
-    val passwordField = remember { mutableStateOf(TextFieldValue("123456789")) }
+    val user by viewModel.collectAsState{it.user}
+
+    val nameField = remember { mutableStateOf(TextFieldValue(user()?.displayName?:"")) }
+    val emailField = remember { mutableStateOf(TextFieldValue(user()?.email?:"")) }
+    val passwordField = remember { mutableStateOf(TextFieldValue()) }
 
     var isPasswordVisible by remember { mutableStateOf(false) }
 
     ProfileTextField(
         fieldValue = nameField,
         label = "Name",
-        onCreateClick = { nameOnSave(nameField.value) })
+        onCreateClick = { viewModel.updateName(nameField.value.text) })
     Spacer(Modifier.height(dimens.normalPadding))
     ProfileTextField(
         fieldValue = emailField,
         label = "Email",
         isEmail = true,
-        onCreateClick = { emailOnSave(emailField.value) })
+        onCreateClick = { viewModel.updateEmail(emailField.value.text) })
     Spacer(Modifier.height(dimens.normalPadding))
     ProfileTextField(
         fieldValue = passwordField,
         label = "Password",
-        onCreateClick = { passwordOnSave(passwordField.value) },
+        onCreateClick = { viewModel.updatePassword(passwordField.value.text) },
         isPassword = true,
         isVisible = isPasswordVisible,
         additionalTrailingIcon = {
@@ -176,9 +189,3 @@ private fun ProfileTextField(
         focusedIndicatorColor = Color.Black
     )
 )
-
-@Preview
-@Composable
-private fun ProfileScreenPreview() = WSRConnectTheme {
-    ProfileScreen()
-}

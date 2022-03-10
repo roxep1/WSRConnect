@@ -2,73 +2,102 @@ package com.bashkir.wsrconnect
 
 import android.content.Context
 import com.airbnb.mvrx.*
+import com.bashkir.wsrconnect.data.services.FirebaseService
 import com.bashkir.wsrconnect.utils.isValid
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import org.koin.core.parameter.parametersOf
 
-class ConnectViewModel(initialState: ConnectState, private val context: Context) :
+class ConnectViewModel(
+    initialState: ConnectState,
+    private val context: Context,
+    private val firebaseService: FirebaseService
+) :
     MavericksViewModel<ConnectState>(initialState) {
 
-    private val auth = Firebase.auth
-
     init {
-//        auth.currentUser?.let { user ->
-//            setState { copy(user = Success(user)) }
-//        }
+        firebaseService.getCurrentUser()?.let { user ->
+            setUser(user)
+        }
+    }
+
+    fun signOut() {
+        firebaseService.signOut()
+        setState { copy(user = Uninitialized) }
+    }
+
+    fun updateName(name: String, onFailure: (Exception) -> Unit = {}) = withState { state ->
+        firebaseService.updateName(
+            name,
+            state.user()!!,
+            onSuccess = { setUser(firebaseService.getCurrentUser()!!) },
+            onFailure = onFailure
+        )
+    }
+
+    fun updatePassword(password: String, onFailure: (Exception) -> Unit = {}) = withState { state ->
+        firebaseService.updatePassword(
+            password,
+            state.user()!!,
+            onSuccess = { setUser(firebaseService.getCurrentUser()!!) },
+            onFailure = onFailure
+        )
+    }
+
+    fun updateEmail(email: String, onFailure: (Exception) -> Unit = {}) = withState { state ->
+        firebaseService.updateEmail(
+            email,
+            state.user()!!,
+            onSuccess = { setUser(firebaseService.getCurrentUser()!!) },
+            onFailure = onFailure
+        )
     }
 
     fun signIn(email: String, password: String) {
         if (isValid(email, password))
-            auth.signInWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            firebaseService.signIn(email, password) { task ->
                 when {
-                    task.isSuccessful -> setState { copy(user = Success(auth.currentUser!!)) }
+                    task.isSuccessful -> setUser(task.result.user!!)
                     task.isCanceled -> setFail(task.exception)
                 }
             }
         else setFail("Данные введены неверно")
     }
+
+    private fun signInWithIdToken(idToken: String) =
+        firebaseService.signInWithGoogle(idToken) { task ->
+            when {
+                task.isSuccessful -> setUser(task.result.user!!)
+                task.isCanceled -> setFail(task.exception)
+            }
+        }
 
     fun signUp(name: String, email: String, password: String, confirmPassword: String) {
         if (isValid(email, name, password, confirmPassword) && password == confirmPassword)
-            auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            firebaseService.signUp(name, email, password) { task ->
                 when {
-                    task.isSuccessful -> signIn(email, password)
+                    task.isSuccessful -> setUser(task.result.user!!)
                     task.isCanceled -> setFail(task.exception)
                 }
             }
         else setFail("Данные введены неверно")
     }
 
-    fun signInWithGoogle() =
-        GoogleSignInOptions
-            .Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.web_client_id))
-            .requestEmail()
-            .build().let { gso ->
-                GoogleSignIn.getClient(context, gso).silentSignIn().run {
-                    addOnSuccessListener {
-                        firebaseSignInWithIdToken(it.idToken!!)
-                    }
-                }
-            }
-
-    private fun firebaseSignInWithIdToken(idToken: String) =
-        GoogleAuthProvider.getCredential(idToken, null).let { credential ->
-            auth.signInWithCredential(credential)
-                .addOnCompleteListener { task ->
-                    when {
-                        task.isSuccessful -> setState { copy(user = Success(auth.currentUser!!)) }
-                        task.isCanceled -> setFail(task.exception)
-                    }
-                }
+    fun onSignInResult(task: Task<GoogleSignInAccount>?) =
+        try {
+            val account = task?.getResult(ApiException::class.java)
+            if (account != null)
+                signInWithIdToken(account.idToken!!)
+            else setFail("Неудачная авторизация")
+        } catch (e: ApiException) {
+            setFail(e)
         }
+
+    private fun setUser(user: FirebaseUser) = setState { copy(user = Success(user)) }
 
 
     private fun setFail(exception: Exception?) =
@@ -85,4 +114,7 @@ class ConnectViewModel(initialState: ConnectState, private val context: Context)
     }
 }
 
-data class ConnectState(val user: Async<FirebaseUser> = Uninitialized) : MavericksState
+
+data class ConnectState(
+    val user: Async<FirebaseUser> = Uninitialized
+) : MavericksState

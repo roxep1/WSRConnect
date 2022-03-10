@@ -39,7 +39,7 @@ fun CreateMainNavHost(navController: NavHostController, viewModel: ConnectViewMo
     }
 
     composable(MainScreen.destination){
-        BottomBarScreen(navController, rememberNavController())
+        BottomBarScreen(navController, rememberNavController(), viewModel)
     }
 }
 
