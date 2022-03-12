@@ -4,7 +4,9 @@ import android.content.Context
 import com.airbnb.mvrx.*
 import com.bashkir.wsrconnect.data.services.FirebaseService
 import com.bashkir.wsrconnect.utils.isValid
+import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.tasks.Task
 import com.google.firebase.auth.FirebaseUser
@@ -27,6 +29,7 @@ class ConnectViewModel(
 
     fun signOut() {
         firebaseService.signOut()
+        GoogleSignIn.getClient(context, GoogleSignInOptions.DEFAULT_SIGN_IN).signOut()
         setState { copy(user = Uninitialized) }
     }
 
